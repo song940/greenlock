@@ -1,0 +1,21 @@
+body {
+    max-width: 750px;
+    margin: auto;
+    text-align: center;
+}
+
+.domain-input {
+    padding: 5px;
+    display: inline;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+}
+
+.domain-input span {
+    color: green;
+}
+
+.domain-input input { 
+    outline: none;
+    border: none;
+}
