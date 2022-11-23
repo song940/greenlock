@@ -1,0 +1,33 @@
+@import url(https://lsong.org/css/stylesheet.css);
+@import url(https://lsong.org/stylesheets/form.css);
+@import url(https://lsong.org/stylesheets/input.css);
+@import url(https://lsong.org/stylesheets/button.css);
+
+textarea {
+  min-height: 150px;
+  min-width: 100%;
+  max-width: 100%;
+  display: block;
+  box-sizing: border-box;
+}
+
+.button-primary,
+button[type="submit"] {
+  color: blue;
+}
+
+.button-danger {
+  color: red;
+}
+
+.list {
+  padding: 0;
+}
+
+.list li {
+  padding: 5px;
+}
+
+.list li[selected] {
+  background-color: #e0e0e0;
+}
