@@ -159,22 +159,72 @@ const Step2 = ({ acme, onSubmit }) => {
 const Step3 = ({ acme, onSubmit }) => {
   const [domain, setDomain] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit && onSubmit({ domain });
+    if (!domain) {
+      alert("Please enter a domain");
+      return;
+    }
+    try {
+      console.log("Creating order for domain:", domain);
+      const order = await acme.createOrder([domain]);
+      console.log("Order created successfully:", order);
+      onSubmit && onSubmit({ domain, order });
+    } catch (error) {
+      console.error("Error in order creation process:", error);
+      alert(`Failed to create order: ${error.message}`);
+    }
   };
 
   return (
     h('form', { onSubmit: handleSubmit },
-      h("h2", null, "New Order"),
-      h("div", { className: "domain-input" }, [
-        h('span', null, "Secure "),
-        h('span', null, "https://"),
-        h("input", { value: domain, placeholder: "Your domain name", required: true, onChange: e => setDomain(e.target.value) }),
+      h("h2", null, "Create New Order"),
+      h("div", null, [
+        h("input", {
+          type: "text",
+          value: domain,
+          onChange: (e) => setDomain(e.target.value),
+          placeholder: "Enter your domain (e.g., example.com)",
+          required: true
+        }),
       ]),
-      h("p", null, "Domain, subdomain, or wildcard domain"),
       h("button", { type: "submit" }, "Create Order")
     )
+  );
+};
+
+
+const Step4 = ({ acme, order, onSubmit }) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleFinalize = async () => {
+    setIsLoading(true);
+    try {
+      // In a real-world scenario, you'd generate a CSR here
+      const dummyCsr = "dummy-csr-replace-this-with-real-csr";
+      const finalizedOrder = await acme.finalizeOrder(order.finalize, dummyCsr);
+      console.log("Order finalized:", finalizedOrder);
+      onSubmit && onSubmit({ finalizedOrder });
+    } catch (error) {
+      console.error("Error in order finalization:", error);
+      alert(`Failed to finalize order: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    h('div', null, [
+      h('h2', null, 'Order Details'),
+      h('pre', null, JSON.stringify(order, null, 2)),
+      h('button',
+        {
+          onClick: handleFinalize,
+          disabled: isLoading
+        },
+        isLoading ? 'Finalizing...' : 'Finalize Order'
+      )
+    ])
   );
 };
 
@@ -182,10 +232,6 @@ const App = () => {
   const [step, setStep] = useState(1);
   const [data, setData] = useState({});
   const [acme] = useState(() => new AcmeClient());
-
-  useEffect(() => {
-    console.log('App is ready');
-  }, []);
 
   const handleStep1 = (stepData) => {
     setData({ ...data, ...stepData });
@@ -199,15 +245,23 @@ const App = () => {
 
   const handleStep3 = (stepData) => {
     setData({ ...data, ...stepData });
-    console.log("Final data:", { ...data, ...stepData });
-    // Here you would typically send the data to your backend or perform the next action
+    console.log("Order created:", stepData.order);
+    setStep(4);
+  };
+
+  const handleStep4 = (stepData) => {
+    setData({ ...data, ...stepData });
+    console.log("Order finalized:", stepData.finalizedOrder);
+    // Here you would typically move to the next step (e.g., downloading the certificate)
+    // setStep(5);
   };
 
   return [
-    h("h1", null, "Protect your website"),
+    h("h1", null, "Let's Encrypt ACME Client"),
     step === 1 && h(Step1, { acme, onSubmit: handleStep1 }),
     step === 2 && h(Step2, { acme, onSubmit: handleStep2 }),
     step === 3 && h(Step3, { acme, onSubmit: handleStep3 }),
+    step === 4 && h(Step4, { acme, order: data.order, onSubmit: handleStep4 }),
   ]
 }
 

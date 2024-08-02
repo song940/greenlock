@@ -29,7 +29,10 @@ export class AcmeClient {
         }
     }
 
-    // ... (other methods remain the same)
+    registerAccount(accountUrl) {
+        this.accountUrl = accountUrl;
+        console.log("Account registered with URL:", this.accountUrl);
+    }
 
     async createAccount(contact, termsOfServiceAgreed) {
         if (!this.directory) {
@@ -37,12 +40,33 @@ export class AcmeClient {
         }
 
         const payload = {
-            contact,
-            termsOfServiceAgreed
+            termsOfServiceAgreed: termsOfServiceAgreed,
+            contact: contact.map(c => c.startsWith('mailto:') ? c : `mailto:${c}`)
         };
 
+        console.log("Creating account with payload:", JSON.stringify(payload, null, 2));
+
         const response = await this.signedRequest(this.directory.newAccount, payload);
-        this.accountUrl = response.headers.get('Location');
+        const accountUrl = response.headers.get('Location');
+        this.registerAccount(accountUrl);
+        return await response.json();
+    }
+
+    async createOrder(identifiers) {
+        if (!this.accountUrl) {
+            throw new Error('Account not registered. Call createAccount() first.');
+        }
+
+        const payload = {
+            identifiers: identifiers.map(identifier => ({
+                type: "dns",
+                value: identifier
+            }))
+        };
+
+        console.log("Creating order with payload:", JSON.stringify(payload, null, 2));
+
+        const response = await this.signedRequest(this.directory.newOrder, payload);
         return await response.json();
     }
 
@@ -70,40 +94,41 @@ export class AcmeClient {
 
     async signedRequest(url, payload) {
         if (!this.keyPair) {
-          throw new Error('KeyPair not initialized. Call importKeyPair() first.');
+            throw new Error('KeyPair not initialized. Call importKeyPair() first.');
         }
         await this.getNonce();
         const header = {
-          alg: 'RS256',
-          nonce: this.nonce,
-          url: url,
-          jwk: this.publicJwk,
-        };
-    
+            alg: 'RS256',
+            nonce: this.nonce,
+            url: url,
+            kid: this.accountUrl || undefined,
+            jwk: this.accountUrl ? undefined : this.publicJwk,
+          };
+
         const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
         const encodedPayload = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
         const signingInput = `${encodedHeader}.${encodedPayload}`;
         const signature = await signPayload(this.keyPair.privateKey, signingInput);
         const jws = createJws(header, payload, signature);
-    
+
         console.log("Sending JWS:", JSON.stringify(jws, null, 2));
-    
+
         const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/jose+json',
-          },
-          body: JSON.stringify(jws),
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/jose+json',
+            },
+            body: JSON.stringify(jws),
         });
-    
+
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error('ACME request failed:', errorData);
-          throw new Error(`ACME request failed: ${errorData.detail}`);
+            const errorData = await response.json();
+            console.error('ACME request failed:', errorData);
+            throw new Error(`ACME request failed: ${errorData.detail}`);
         }
-    
+
         return response;
-      }
+    }
 
 
     async createAccount(contact, termsOfServiceAgreed) {
