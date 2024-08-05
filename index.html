@@ -11,7 +11,76 @@
 
 <body>
   <div class="container">
-    <main id="app"></main>
+    <header>
+      <h1>🔒 Greenlock</h1>
+    </header>
+
+    <main id="app">
+      <form id="step1">
+        <h3>Step1: Select Service Provider</h3>
+        <select name="provider" required data-persist>
+          <option>Choose a provider</option>
+          <option value="https://acme-v02.api.letsencrypt.org/directory">Let's Encrypt</option>
+          <option value="https://acme-staging-v02.api.letsencrypt.org/directory">Let's Encrypt Staging</option>
+          <option value="https://acme.zerossl.com/v2/DV90">ZeroSSL</option>
+          <option value="https://api.buypass.com/acme/directory">Buypass</option>
+        </select>
+        <button type="submit" class="button-primary">Confirm</button>
+      </form>
+
+      <form>
+        <div class="form-field">
+          <label for="privkey">Private Key</label>
+          <textarea id="privkey" required placeholder="Private Key" data-persist></textarea>
+          <label for="pubkey">Public Key</label>
+          <textarea id="pubkey" required placeholder="Public Key" data-persist></textarea>
+        </div>
+        <div class="form-field">
+          <button id="generateKeys">Generate New Keys</button>
+          <button id="importKeys" class="button-primary">Import Keys</button>
+        </div>
+      </form>
+
+      <section id="step2">
+        <h3>Step2: Crreate Account</h3>
+
+        <form id="signup">
+          <div class="form-field">
+            <label for="email">Contact:</label>
+            <input type="email" class="input-block" required placeholder="Email">
+          </div>
+          <div class="form-field">
+            <input type="checkbox" id="agree" name="terms" value="agree">
+            <label for="agree">Agree to the <a href="#">Terms of Service</a></label>
+          </div>
+          <div class="form-field">
+            <button type="submit">Create Account</button>
+          </div>
+        </form>
+
+        <form id="login">
+          <div class="form-field">
+            <label for="account">Account URL</label>
+            <input id="accountUrl" type="url" class="input-block" placeholder="Account URL" required data-persist>
+          </div>
+          <div class="form-field">
+            <button class="button-primary">Register</button>
+          </div>
+        </form>
+
+      </section>
+
+      <form id="step3">
+        <h3>Step3: Create New Order</h3>
+        <div class="form-field">
+          <textarea name="domains" required placeholder="Enter your domain (e.g., example.com)" data-persist></textarea>
+        </div>
+        <div class="form-field">
+          <button type="submit" class="button-primary">Create New Order</button>
+        </div>
+      </form>
+
+    </main>
   </div>
 </body>
 
