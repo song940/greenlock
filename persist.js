@@ -28,7 +28,6 @@ function restoreElementValue(element) {
 
 function initFormPersistence() {
   const elements = document.querySelectorAll(`[${PERSISTENCE_ATTR}]`);
-  console.log(elements);
   elements.forEach(element => {
     restoreElementValue(element);
     element.addEventListener('change', () => saveElementValue(element));

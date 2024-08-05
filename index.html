@@ -15,7 +15,7 @@
       <h1>🔒 Greenlock</h1>
     </header>
 
-    <main id="app">
+    <main>
       <form id="step1">
         <h3>Step1: Select Service Provider</h3>
         <select name="provider" required data-persist>
@@ -50,11 +50,12 @@
             <input type="email" class="input-block" required placeholder="Email">
           </div>
           <div class="form-field">
-            <input type="checkbox" id="agree" name="terms" value="agree">
-            <label for="agree">Agree to the <a href="#">Terms of Service</a></label>
+            <input type="checkbox" id="agree" name="terms" value="agree" required>
+            <label for="agree">Agree to the <a id="tos" href="#">Terms of Service</a></label>
           </div>
           <div class="form-field">
             <button type="submit">Create Account</button>
+            <span> or <a href="#login">Login your existing account</a></span>
           </div>
         </form>
 
@@ -64,7 +65,7 @@
             <input id="accountUrl" type="url" class="input-block" placeholder="Account URL" required data-persist>
           </div>
           <div class="form-field">
-            <button class="button-primary">Register</button>
+            <button class="button-primary">Login</button>
           </div>
         </form>
 
@@ -76,9 +77,11 @@
           <textarea name="domains" required placeholder="Enter your domain (e.g., example.com)" data-persist></textarea>
         </div>
         <div class="form-field">
-          <button type="submit" class="button-primary">Create New Order</button>
+          <button type="submit" class="">Create New Order</button>
         </div>
       </form>
+
+      <div id="app"></div>
 
     </main>
   </div>

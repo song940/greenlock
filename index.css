@@ -3,16 +3,24 @@
 @import url(https://lsong.org/stylesheets/button.css);
 
 textarea {
-    min-height: 150px;
-    min-width: 100%;
-    max-width: 100%;
-    display: block;
+  min-height: 150px;
+  min-width: 100%;
+  max-width: 100%;
+  display: block;
 }
 
 .input-block {
-    width: 100%;
+  width: 100%;
 }
 
 .button-primary {
-    color: red;
+  color: red;
+}
+
+#orders ul {
+  padding: 0;
+}
+
+#orders li {
+  cursor: pointer;
 }
