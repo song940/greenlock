@@ -113,4 +113,70 @@ export class AcmeClient {
     const response = await this._signedRequest(finalizeUrl, payload);
     return response.json();
   }
+  async getThumbprint() {
+    if (!this.publicJwk)
+      throw new Error('Public key not set. Import key pair first.');
+    // Create a canonical JWK by including only the required fields in lexicographic order
+    const canonicalJwk = {
+      e: this.publicJwk.e,
+      kty: this.publicJwk.kty,
+      n: this.publicJwk.n
+    };
+    // Stringify the canonical JWK without whitespace
+    const jwkString = JSON.stringify(canonicalJwk);
+
+    // Calculate SHA-256 hash
+    const encoder = new TextEncoder();
+    const data = encoder.encode(jwkString);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+    // Convert hash to base64url encoding
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    this.thumbprint = base64UrlEncode(hashHex);
+
+    return this.thumbprint;
+  }
+  
+  async verifyChallenge(challengeUrl) {
+    if (!this.accountUrl) {
+      throw new Error('Account not registered. Call createAccount() first.');
+    }
+
+    // The payload for challenge verification is an empty JSON object
+    const payload = {};
+
+    try {
+      const response = await this._signedRequest(challengeUrl, payload, 'POST');
+      const challenge = await response.json();
+
+      // The server will usually respond with the updated challenge object
+      console.log('Challenge verification initiated:', challenge);
+
+      // Start polling for challenge status
+      return this.pollChallengeStatus(challengeUrl);
+    } catch (error) {
+      console.error('Error verifying challenge:', error);
+      throw error;
+    }
+  }
+  async getChallenge(challengeUrl){
+    const response = await this._signedRequest(challengeUrl, null, 'GET');
+    return response.json();
+  }
+
+  async pollChallengeStatus(challengeUrl, maxAttempts = 10, interval = 5000) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const challenge = await this.getChallenge(challengeUrl);
+      console.log(`Challenge status (attempt ${attempt + 1}):`, challenge.status);
+      if (challenge.status === 'valid') {
+        return challenge;
+      } else if (challenge.status === 'invalid') {
+        throw new Error('Challenge validation failed: ' + JSON.stringify(challenge.error));
+      }
+      // Wait before the next attempt
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    throw new Error('Challenge validation timed out');
+  }
 }

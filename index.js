@@ -1,4 +1,4 @@
-import { h, render, useState, useLocalStorageState } from 'https://lsong.org/scripts/react/index.js';
+import { h, render, useState, useLocalStorageState, useCallback } from 'https://lsong.org/scripts/react/index.js';
 
 import { AcmeClient } from './acme.js';
 import { generateRsaKeyPairAsPem } from './jwk.js';
@@ -24,7 +24,6 @@ document.getElementById('step1').addEventListener('submit', async (event) => {
 // Generate new keys
 document.getElementById('generateKeys').addEventListener('click', async (event) => {
   event.preventDefault();
-  console.log(event.target);
   const { publicKey, privateKey } = await generateRsaKeyPairAsPem();
   document.getElementById('pubkey').value = publicKey;
   document.getElementById('privkey').value = privateKey;
@@ -38,6 +37,7 @@ document.getElementById('importKeys').addEventListener('click', async (event) =>
   const privateKey = document.getElementById('privkey').value;
   const publicKey = document.getElementById('pubkey').value;
   await acme.importKeyPair(publicKey, privateKey);
+  await acme.getThumbprint();
   console.log("Key pair imported and JWK exported successfully.");
 });
 
@@ -83,50 +83,114 @@ document.addEventListener('DOMContentLoaded', () => {
   renderApp();
 });
 
+
 const App = () => {
-  const [orders, setOrders] = useLocalStorageState('orders', []);
-  const [authorizations, setAuthorizations] = useState([]);
-  console.log(orders);
-  const handleOrderClick = async order => {
-    const auths = [];
-    for (const url of order.authorizations) {
-      const authorization = await acme.getAuthorization(url);
-      auths.push(authorization);
-    }
-    setAuthorizations(auths);
+  const [orders] = useLocalStorageState('orders', []);
+  const [selectedOrder, setOrder] = useState(null);
+  const [selectedAuth, setSelectedAuth] = useState(null);
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+
+  const handleOrderClick = useCallback(async (order) => {
+    setSelectedAuth(null);
+    setSelectedChallenge(null);
+    const authPromises = order.authorizations.map(url => acme.getAuthorization(url));
+    order.auths = await Promise.all(authPromises);
+    setOrder(order);
+  }, []);
+
+  const handleAuthClick = (auth) => {
+    setSelectedAuth(auth);
+    setSelectedChallenge(null);
   };
+
+  const handleChallengeClick = (challenge) => {
+    setSelectedChallenge(challenge);
+  };
+
+  const handleVerifyChallenge = async () => {
+    if (!selectedChallenge || !selectedAuth) return;
+    const result = await acme.verifyChallenge(selectedChallenge.url);
+    console.log(result);
+  };
+
   return h('div', { id: 'orders' }, [
     h('h3', null, 'Orders'),
     h('ul', {}, orders.map(order =>
-      h('li', { className: 'flex flex-jc-between', onClick: handleOrderClick.bind(null, order) }, [
+      h('li', {
+        className: 'flex flex-jc-between',
+        onClick: () => handleOrderClick(order),
+        style: { cursor: 'pointer', padding: '5px', backgroundColor: selectedOrder === order ? '#e0e0e0' : 'transparent' }
+      }, [
         h('a', { href: order.url }, '#' + order.url.split('/').pop()),
         h('span', {}, order.identifiers.map(x => x.value).join(', ')),
         h('span', {}, order.status),
         h('span', {}, order.expires),
-        h('button', {}, 'finalize'),
       ]))
     ),
     h('h3', null, "Order Details"),
-    h('p', null, 'Tips: '),
     h('h4', null, 'Authorizations'),
-    h('ol', {}, authorizations.map(auth =>
-      h('li', null, [
-        h('h4', { className: 'flex flex-jc-between' }, [
-          "Authorization ",
-          h('a', { href: auth.url }, '#' + auth.url.split('/').pop()),
-          h('span', {}, auth.status),
-        ]),
-        h('ul', {}, auth.challenges.map(challenge =>
-          h('li', { className: 'flex flex-jc-between' }, [
-            h('span', {}, challenge.type),
-            h('span', {}, challenge.status),
-          ]))
-        )
-      ])
-    ))
+    selectedOrder && [
+      h('ul', {}, selectedOrder.auths.map(auth =>
+        h('li', {
+          className: 'flex flex-jc-between',
+          onClick: () => handleAuthClick(auth),
+          style: { cursor: 'pointer', padding: '5px', backgroundColor: selectedAuth === auth ? '#e0e0e0' : 'transparent' }
+        }, [
+          h('span', {}, `Domain: ${auth.identifier.value}`),
+          h('span', {}, `Status: ${auth.status}`),
+        ])
+      )),
+    ],
+    selectedAuth && [
+      h('h4', null, `Challenges for ${selectedAuth.identifier.value}`),
+      h('ul', {}, selectedAuth.challenges.map(challenge =>
+        h('li', {
+          className: 'flex flex-jc-between',
+          onClick: () => handleChallengeClick(challenge),
+          style: { cursor: 'pointer', padding: '5px', backgroundColor: selectedChallenge === challenge ? '#e0e0e0' : 'transparent' }
+        }, [
+          h('span', {}, `Type: ${challenge.type}`),
+          h('span', {}, `Status: ${challenge.status}`),
+        ])
+      )),
+    ],
+    selectedChallenge && selectedAuth && [
+      h('h4', null, 'Selected Challenge'),
+      selectedChallenge.type == 'http-01' && h('div', {}, [
+        h('h5', {}, 'HTTP-01 Challenge Instructions:'),
+        h('ol', {}, [
+          h('li', {}, `Create a file at `, [
+            h('a', {
+              target: '_blank',
+              href: `http://${selectedAuth.identifier.value}/.well-known/acme-challenge/${selectedChallenge.token}`
+            }, `http://${selectedAuth.identifier.value}/.well-known/acme-challenge/${selectedChallenge.token}`)
+          ]),
+          h('li', {}, `File content should be: `, h('input', { value: `${selectedChallenge.token}.${acme.thumbprint}` })),
+          h('li', {}, 'Ensure the file is accessible via HTTP'),
+        ])
+      ]),
+      selectedChallenge.type == 'dns-01' && h('div', {}, [
+        h('h5', {}, 'DNS-01 Challenge Instructions:'),
+        h('ol', {}, [
+          h('li', {}, `Create a TXT record for _acme-challenge.${selectedAuth.identifier.value}`),
+          h('li', {}, `Record content should be: ${selectedChallenge.token}.${acme.thumbprint}`),
+          h('li', {}, 'Wait for DNS propagation (this may take a few minutes to hours)'),
+        ])
+      ]),
+      selectedChallenge.type == 'tls-alpn-01' && h('div', {}, [
+        h('h5', {}, 'TLS-ALPN-01 Challenge Instructions:'),
+        h('ol', {}, [
+          h('li', {}, `Configure your TLS server for ${selectedAuth.identifier.value} to use ALPN`),
+          h('li', {}, 'Set up a self-signed certificate with a acmeIdentifier extension'),
+          h('li', {}, `Extension content should be: ${selectedChallenge.token}.${acme.thumbprint}`),
+          h('li', {}, 'Ensure the TLS server is accessible'),
+        ])
+      ]),
+      h('p', {}, 'Verify the challenge by clicking the button below'),
+      h('button', { onClick: handleVerifyChallenge }, 'Verify Challenge')
+    ]
   ]);
 };
-
 const renderApp = () => {
   const app = document.getElementById('app');
   render(h(App), app);
