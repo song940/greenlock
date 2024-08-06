@@ -17,7 +17,8 @@ textarea {
   color: red;
 }
 
-#orders ul {
+#orders ul,
+#orders ol {
   padding: 0;
 }
 
