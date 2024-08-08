@@ -1,5 +1,11 @@
+import {
+  sign,
+  sha256,
+  exportKeyPairToPem,
+  exportPublicKeyToJwk,
+  importKeyPairFromPem,
+} from 'https://lsong.org/scripts/crypto.js?a';
 import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?v22';
-import { sign, sha256, exportKeyPairToPem, exportPublicKeyToJwk, importKeyPairFromPem } from 'https://lsong.org/scripts/crypto.js?a';
 
 const algorithm = {
   name: "RSASSA-PKCS1-v1_5",

@@ -1,16 +1,29 @@
-import { sha256 } from 'https://lsong.org/scripts/crypto.js?v1';
-import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?ee';
+import { sha256, generateRSAKey } from 'https://lsong.org/scripts/crypto.js?mm';
+import { generateCSRPem } from 'https://lsong.org/scripts/crypto/csr.js?kk';
+import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?kk';
 import { initFormPersistence, saveElementValue } from 'https://lsong.org/scripts/form.js';
 import { h, render, useState, useLocalStorageState, useCallback, useEffect } from 'https://lsong.org/scripts/react/index.js';
 
 import { AcmeClient, generateRsaKeyPairAsPem } from './acme.js';
 
+const keyPair = await generateRSAKey();
+
+const csrInfo = {
+  commonName: "example.com",
+  organization: "Example Inc",
+  organizationalUnit: "IT Department",
+  locality: "San Francisco",
+  state: "California",
+  country: "US",
+  email: "admin@example.com"
+};
+
+const csr = await generateCSRPem(keyPair, csrInfo);
+
+console.log(csr);
+
 // Create an instance of AcmeClient
 const acme = new AcmeClient();
-
-// Helper function to show/hide sections
-function showSection(id) {
-}
 
 // Step 1: Select Service Provider
 document.getElementById('step1').addEventListener('submit', async (event) => {
@@ -79,7 +92,6 @@ document.getElementById('step3').addEventListener('submit', async (event) => {
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
-  showSection('step1');
   initFormPersistence();
   renderApp();
 });
