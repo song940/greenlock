@@ -1,7 +1,44 @@
-import { exportPublicKeyAsJwk, signPayload, createJws, importKeyFromPem } from './jwk.js';
+import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?v22';
+import { sign, sha256, exportKeyPairToPem, exportPublicKeyToJwk, importKeyPairFromPem } from 'https://lsong.org/scripts/crypto.js?a';
 
-function base64UrlEncode(str) {
-  return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+const algorithm = {
+  name: "RSASSA-PKCS1-v1_5",
+  hash: "SHA-256",
+};
+
+// Key generation functions
+export async function generateRsaKeyPair() {
+  return window.crypto.subtle.generateKey(
+    {
+      ...algorithm,
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    },
+    true,
+    ["sign", "verify"]
+  );
+}
+
+export async function generateRsaKeyPairAsPem() {
+  const keyPair = await generateRsaKeyPair();
+  return exportKeyPairToPem(keyPair, algorithm);
+};
+
+// Signing and JWS functions
+export async function signPayload(privateKey, payload) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(payload);
+  const signature = await sign(privateKey, data, algorithm);
+  console.log('signature:', signature);
+  return base64UrlEncode(signature);
+}
+
+export function createJws(header, payload, signature) {
+  return {
+    protected: base64UrlEncode(JSON.stringify(header)),
+    payload: base64UrlEncode(JSON.stringify(payload)),
+    signature: signature,
+  };
 }
 
 export class AcmeClient {
@@ -29,10 +66,12 @@ export class AcmeClient {
   }
 
   async importKeyPair(publicKeyPem, privateKeyPem) {
-    const publicKey = await importKeyFromPem(publicKeyPem, true);
-    const privateKey = await importKeyFromPem(privateKeyPem, false);
-    this.keyPair = { publicKey, privateKey };
-    this.publicJwk = await exportPublicKeyAsJwk(this.keyPair.publicKey);
+    this.keyPair = await importKeyPairFromPem({
+      publicKey: publicKeyPem,
+      privateKey: privateKeyPem,
+    }, algorithm);
+    console.log(this.keyPair);
+    this.publicJwk = await exportPublicKeyToJwk(this.keyPair.publicKey);
   }
 
 
@@ -124,20 +163,12 @@ export class AcmeClient {
     };
     // Stringify the canonical JWK without whitespace
     const jwkString = JSON.stringify(canonicalJwk);
-
     // Calculate SHA-256 hash
-    const encoder = new TextEncoder();
-    const data = encoder.encode(jwkString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-
-    // Convert hash to base64url encoding
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    this.thumbprint = base64UrlEncode(hashHex);
-
+    const hashBuffer = await sha256(jwkString);
+    this.thumbprint = base64UrlEncode(hashBuffer);
     return this.thumbprint;
   }
-  
+
   async verifyChallenge(challengeUrl) {
     if (!this.accountUrl) {
       throw new Error('Account not registered. Call createAccount() first.');
@@ -145,22 +176,16 @@ export class AcmeClient {
 
     // The payload for challenge verification is an empty JSON object
     const payload = {};
+    const response = await this._signedRequest(challengeUrl, payload, 'POST');
+    const challenge = await response.json();
 
-    try {
-      const response = await this._signedRequest(challengeUrl, payload, 'POST');
-      const challenge = await response.json();
+    // The server will usually respond with the updated challenge object
+    console.log('Challenge verification initiated:', challenge);
 
-      // The server will usually respond with the updated challenge object
-      console.log('Challenge verification initiated:', challenge);
-
-      // Start polling for challenge status
-      return this.pollChallengeStatus(challengeUrl);
-    } catch (error) {
-      console.error('Error verifying challenge:', error);
-      throw error;
-    }
+    // Start polling for challenge status
+    return this.pollChallengeStatus(challengeUrl);
   }
-  async getChallenge(challengeUrl){
+  async getChallenge(challengeUrl) {
     const response = await this._signedRequest(challengeUrl, null, 'GET');
     return response.json();
   }

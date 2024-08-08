@@ -1,8 +1,9 @@
-import { h, render, useState, useLocalStorageState, useCallback } from 'https://lsong.org/scripts/react/index.js';
+import { sha256 } from 'https://lsong.org/scripts/crypto.js?v1';
+import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?ee';
+import { initFormPersistence, saveElementValue } from 'https://lsong.org/scripts/form.js';
+import { h, render, useState, useLocalStorageState, useCallback, useEffect } from 'https://lsong.org/scripts/react/index.js';
 
-import { AcmeClient } from './acme.js';
-import { generateRsaKeyPairAsPem } from './jwk.js';
-import { initFormPersistence, saveElementValue } from './persist.js';
+import { AcmeClient, generateRsaKeyPairAsPem } from './acme.js';
 
 // Create an instance of AcmeClient
 const acme = new AcmeClient();
@@ -83,6 +84,30 @@ document.addEventListener('DOMContentLoaded', () => {
   renderApp();
 });
 
+const hex = uint8array =>
+  uint8array.reduce((a, b) => a + b.toString(16).padStart(2, '0'), '');
+
+const DNS01ChallengeInstructions = ({ authorization, challenge, thumbprint }) => {
+  const [token, setToken] = useState('');
+  const computeDnsTxtRecord = async (token, thumbprint) => {
+    const hashBuffer = await sha256(`${token}.${thumbprint}`);
+    console.log('sha256', hex(hashBuffer), `${token}.${thumbprint}`);
+    return base64UrlEncode(hashBuffer);
+  };
+  useEffect(() => {
+    computeDnsTxtRecord(challenge.token, thumbprint).then(setToken);
+  }, []);
+  return h('div', {}, [
+    h('h5', {}, 'DNS-01 Challenge Instructions:'),
+    h('ol', {}, [
+      h('li', {}, `Create a TXT record for _acme-challenge.${authorization.identifier.value}`),
+      h('li', {}, `Record content should be: `,
+        h('code', null, token)
+      ),
+      h('li', {}, 'Wait for DNS propagation (this may take a few minutes to hours)'),
+    ])
+  ])
+}
 
 const App = () => {
   const [orders] = useLocalStorageState('orders', []);
@@ -96,6 +121,7 @@ const App = () => {
     const authPromises = order.authorizations.map(url => acme.getAuthorization(url));
     order.auths = await Promise.all(authPromises);
     setOrder(order);
+    console.log(order);
   }, []);
 
   const handleAuthClick = (auth) => {
@@ -165,24 +191,25 @@ const App = () => {
               href: `http://${selectedAuth.identifier.value}/.well-known/acme-challenge/${selectedChallenge.token}`
             }, `http://${selectedAuth.identifier.value}/.well-known/acme-challenge/${selectedChallenge.token}`)
           ]),
-          h('li', {}, `File content should be: `, h('input', { value: `${selectedChallenge.token}.${acme.thumbprint}` })),
+          h('li', {}, `File content should be: `,
+            h('code', {}, `${selectedChallenge.token}.${acme.thumbprint}`)
+          ),
           h('li', {}, 'Ensure the file is accessible via HTTP'),
         ])
       ]),
-      selectedChallenge.type == 'dns-01' && h('div', {}, [
-        h('h5', {}, 'DNS-01 Challenge Instructions:'),
-        h('ol', {}, [
-          h('li', {}, `Create a TXT record for _acme-challenge.${selectedAuth.identifier.value}`),
-          h('li', {}, `Record content should be: ${selectedChallenge.token}.${acme.thumbprint}`),
-          h('li', {}, 'Wait for DNS propagation (this may take a few minutes to hours)'),
-        ])
-      ]),
+      selectedChallenge.type == 'dns-01' && h(DNS01ChallengeInstructions, {
+        authorization: selectedAuth,
+        challenge: selectedChallenge,
+        thumbprint: acme.thumbprint,
+      }),
       selectedChallenge.type == 'tls-alpn-01' && h('div', {}, [
         h('h5', {}, 'TLS-ALPN-01 Challenge Instructions:'),
         h('ol', {}, [
           h('li', {}, `Configure your TLS server for ${selectedAuth.identifier.value} to use ALPN`),
           h('li', {}, 'Set up a self-signed certificate with a acmeIdentifier extension'),
-          h('li', {}, `Extension content should be: ${selectedChallenge.token}.${acme.thumbprint}`),
+          h('li', {}, `Extension content should be: `,
+            h('code', null, `${selectedChallenge.token}.${acme.thumbprint}`)
+          ),
           h('li', {}, 'Ensure the TLS server is accessible'),
         ])
       ]),

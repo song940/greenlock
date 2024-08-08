@@ -7,6 +7,7 @@ textarea {
   min-width: 100%;
   max-width: 100%;
   display: block;
+  box-sizing: border-box;
 }
 
 .input-block {
@@ -24,4 +25,9 @@ textarea {
 
 #orders li {
   cursor: pointer;
+}
+
+code {
+  font-family: monospace;
+  word-break: break-all;
 }
