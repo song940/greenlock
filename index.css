@@ -1,5 +1,6 @@
 @import url(https://lsong.org/css/stylesheet.css);
 @import url(https://lsong.org/stylesheets/form.css);
+@import url(https://lsong.org/stylesheets/input.css);
 @import url(https://lsong.org/stylesheets/button.css);
 
 textarea {
@@ -8,26 +9,4 @@ textarea {
   max-width: 100%;
   display: block;
   box-sizing: border-box;
-}
-
-.input-block {
-  width: 100%;
-}
-
-.button-primary {
-  color: red;
-}
-
-#orders ul,
-#orders ol {
-  padding: 0;
-}
-
-#orders li {
-  cursor: pointer;
-}
-
-code {
-  font-family: monospace;
-  word-break: break-all;
 }

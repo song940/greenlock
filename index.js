@@ -1,31 +1,16 @@
-import { sha256, generateRSAKey } from 'https://lsong.org/scripts/crypto.js?mm';
-import { generateCSRPem } from 'https://lsong.org/scripts/crypto/csr.js?kk';
-import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?kk';
-import { initFormPersistence, saveElementValue } from 'https://lsong.org/scripts/form.js';
+import { ready } from 'https://lsong.org/scripts/dom.js';
+import { sha256 } from 'https://lsong.org/scripts/crypto.js';
+import { generateCSRPem } from 'https://lsong.org/scripts/crypto/csr.js';
+import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js';
+import { initFormPersistence, saveElementValue, serialize } from 'https://lsong.org/scripts/form.js';
 import { h, render, useState, useLocalStorageState, useCallback, useEffect } from 'https://lsong.org/scripts/react/index.js';
 
 import { AcmeClient, generateRsaKeyPairAsPem } from './acme.js';
 
-const keyPair = await generateRSAKey();
-
-const csrInfo = {
-  commonName: "example.com",
-  organization: "Example Inc",
-  organizationalUnit: "IT Department",
-  locality: "San Francisco",
-  state: "California",
-  country: "US",
-  email: "admin@example.com"
-};
-
-const csr = await generateCSRPem(keyPair, csrInfo);
-
-console.log(csr);
-
 // Create an instance of AcmeClient
 const acme = new AcmeClient();
 
-// Step 1: Select Service Provider
+// Select Service Provider
 document.getElementById('step1').addEventListener('submit', async (event) => {
   event.preventDefault();
   const select = event.target.querySelector('select');
@@ -75,10 +60,10 @@ document.getElementById('login').addEventListener('submit', async (event) => {
   console.log('Acme account registered:', acme.accountUrl);
 });
 
-// Step 3: Create New Order
-document.getElementById('step3').addEventListener('submit', async (event) => {
+// Create New Order
+document.getElementById('createOrder').addEventListener('click', async (event) => {
   event.preventDefault();
-  const domains = event.target.querySelector('textarea').value.split('\n');
+  const domains = document.getElementById('domains').value.trim().split(/\s+/);
   const order = await acme.createOrder({
     identifiers: domains.map(domain => ({ type: 'dns', value: domain })),
   });
@@ -90,10 +75,19 @@ document.getElementById('step3').addEventListener('submit', async (event) => {
   renderApp();
 });
 
-// Initialize the page
-document.addEventListener('DOMContentLoaded', () => {
-  initFormPersistence();
-  renderApp();
+// Step 3: Create CSR
+document.getElementById('step3').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const inputs = serialize(event.target);
+  console.log(inputs);
+  const csr = await generateCSRPem(acme.keyPair, inputs);
+  document.getElementById('csr').value = csr;
+});
+
+document.getElementById('finalize').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const csr = event.target.querySelector('textarea').value;
+  console.log('finalize', csr);
 });
 
 const hex = uint8array =>
@@ -153,7 +147,7 @@ const App = () => {
 
   return h('div', { id: 'orders' }, [
     h('h3', null, 'Orders'),
-    h('ul', {}, orders.map(order =>
+    h('ul', { className: 'padding-0' }, orders.map(order =>
       h('li', {
         className: 'flex flex-jc-between',
         onClick: () => handleOrderClick(order),
@@ -165,10 +159,10 @@ const App = () => {
         h('span', {}, order.expires),
       ]))
     ),
-    h('h3', null, "Order Details"),
-    h('h4', null, 'Authorizations'),
+    h('h4', null, "Order Details"),
+    h('h5', null, 'Authorizations'),
     selectedOrder && [
-      h('ul', {}, selectedOrder.auths.map(auth =>
+      h('ul', { className: 'padding-0' }, selectedOrder.auths.map(auth =>
         h('li', {
           className: 'flex flex-jc-between',
           onClick: () => handleAuthClick(auth),
@@ -180,8 +174,8 @@ const App = () => {
       )),
     ],
     selectedAuth && [
-      h('h4', null, `Challenges for ${selectedAuth.identifier.value}`),
-      h('ul', {}, selectedAuth.challenges.map(challenge =>
+      h('h5', null, `Challenges for ${selectedAuth.identifier.value}`),
+      h('ul', { className: 'padding-0' }, selectedAuth.challenges.map(challenge =>
         h('li', {
           className: 'flex flex-jc-between',
           onClick: () => handleChallengeClick(challenge),
@@ -193,9 +187,9 @@ const App = () => {
       )),
     ],
     selectedChallenge && selectedAuth && [
-      h('h4', null, 'Selected Challenge'),
+      h('h5', null, 'Selected Challenge'),
       selectedChallenge.type == 'http-01' && h('div', {}, [
-        h('h5', {}, 'HTTP-01 Challenge Instructions:'),
+        h('h6', {}, 'HTTP-01 Challenge Instructions:'),
         h('ol', {}, [
           h('li', {}, `Create a file at `, [
             h('a', {
@@ -227,10 +221,16 @@ const App = () => {
       ]),
       h('p', {}, 'Verify the challenge by clicking the button below'),
       h('button', { onClick: handleVerifyChallenge }, 'Verify Challenge')
-    ]
+    ],
+    selectedAuth && selectedAuth.status == '' && h('button', null, "Finalize")
   ]);
 };
 const renderApp = () => {
   const app = document.getElementById('app');
   render(h(App), app);
 }
+
+ready(() => {
+  initFormPersistence();
+  renderApp();
+});

@@ -1,32 +1,20 @@
 import {
   sign,
   sha256,
+  generateRSAKey,
   exportKeyPairToPem,
   exportPublicKeyToJwk,
   importKeyPairFromPem,
-} from 'https://lsong.org/scripts/crypto.js?a';
-import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js?v22';
+} from 'https://lsong.org/scripts/crypto.js';
+import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js';
 
 const algorithm = {
   name: "RSASSA-PKCS1-v1_5",
   hash: "SHA-256",
 };
 
-// Key generation functions
-export async function generateRsaKeyPair() {
-  return window.crypto.subtle.generateKey(
-    {
-      ...algorithm,
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-    },
-    true,
-    ["sign", "verify"]
-  );
-}
-
 export async function generateRsaKeyPairAsPem() {
-  const keyPair = await generateRsaKeyPair();
+  const keyPair = await generateRSAKey();
   return exportKeyPairToPem(keyPair, algorithm);
 };
 
@@ -55,6 +43,7 @@ export class AcmeClient {
     this.accountUrl = null;
     this.keyPair = null;
     this.publicJwk = null;
+    this.thumbprint = null;
   }
 
   // Public methods
@@ -79,7 +68,6 @@ export class AcmeClient {
     console.log(this.keyPair);
     this.publicJwk = await exportPublicKeyToJwk(this.keyPair.publicKey);
   }
-
 
   async _getNonce() {
     if (this.nonce) return this.nonce;
@@ -127,7 +115,6 @@ export class AcmeClient {
     return this._sendRequest(url, jws, method);
   }
 
-
   async registerAccount(accountUrl) {
     this.accountUrl = accountUrl;
   }
@@ -158,6 +145,7 @@ export class AcmeClient {
     const response = await this._signedRequest(finalizeUrl, payload);
     return response.json();
   }
+
   async getThumbprint() {
     if (!this.publicJwk)
       throw new Error('Public key not set. Import key pair first.');
@@ -191,6 +179,7 @@ export class AcmeClient {
     // Start polling for challenge status
     return this.pollChallengeStatus(challengeUrl);
   }
+
   async getChallenge(challengeUrl) {
     const response = await this._signedRequest(challengeUrl, null, 'GET');
     return response.json();
@@ -209,5 +198,66 @@ export class AcmeClient {
       await new Promise(resolve => setTimeout(resolve, interval));
     }
     throw new Error('Challenge validation timed out');
+  }
+
+  // New methods to complete the implementation
+
+  async getOrder(orderUrl) {
+    const response = await this._signedRequest(orderUrl, null, 'GET');
+    return response.json();
+  }
+
+  async downloadCertificate(certificateUrl) {
+    const response = await this._signedRequest(certificateUrl, null, 'GET');
+    return response.text();
+  }
+
+  async revokeCertificate(certificate, reason) {
+    const payload = {
+      certificate: base64UrlEncode(certificate),
+      reason: reason
+    };
+    const response = await this._signedRequest(this.directory.revokeCert, payload);
+    return response.json();
+  }
+
+  async updateAccount(payload) {
+    if (!this.accountUrl) {
+      throw new Error('Account not registered. Call createAccount() first.');
+    }
+    const response = await this._signedRequest(this.accountUrl, payload);
+    return response.json();
+  }
+
+  async deactivateAccount() {
+    if (!this.accountUrl) {
+      throw new Error('Account not registered. Call createAccount() first.');
+    }
+    const payload = { status: 'deactivated' };
+    const response = await this._signedRequest(this.accountUrl, payload);
+    return response.json();
+  }
+
+  async getKeyChange() {
+    if (!this.directory.keyChange) {
+      throw new Error('Key change URL not available in the directory.');
+    }
+    const response = await this._signedRequest(this.directory.keyChange, null, 'GET');
+    return response.json();
+  }
+
+  async changeAccountKey(newPublicKey) {
+    if (!this.accountUrl) {
+      throw new Error('Account not registered. Call createAccount() first.');
+    }
+
+    const payload = {
+      account: this.accountUrl,
+      oldKey: this.publicJwk,
+      newKey: newPublicKey
+    };
+
+    const response = await this._signedRequest(this.directory.keyChange, payload);
+    return response.json();
   }
 }

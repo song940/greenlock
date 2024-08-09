@@ -16,8 +16,9 @@
     </header>
 
     <main>
+
       <form id="step1">
-        <h3>Step1: Get started</h3>
+        <h3>Select Service Provider</h3>
         <select name="provider" required data-persist>
           <option>Choose a provider</option>
           <option value="https://acme-v02.api.letsencrypt.org/directory">Let's Encrypt</option>
@@ -29,6 +30,7 @@
       </form>
 
       <form>
+        <h3>Generate Keys</h3>
         <div class="form-field">
           <label for="privkey">Private Key</label>
           <textarea id="privkey" required placeholder="Private Key" data-persist></textarea>
@@ -41,47 +43,95 @@
         </div>
       </form>
 
-      <section id="step2">
-        <h3>Step2: Crreate Account</h3>
-
-        <form id="signup">
-          <div class="form-field">
-            <label for="email">Contact:</label>
-            <input type="email" class="input-block" required placeholder="Email">
-          </div>
-          <div class="form-field">
-            <input type="checkbox" id="agree" name="terms" value="agree" required>
-            <label for="agree">Agree to the <a id="tos" href="#">Terms of Service</a></label>
-          </div>
-          <div class="form-field">
-            <button type="submit">Create Account</button>
-            <span> or <a href="#login">Login your existing account</a></span>
-          </div>
-        </form>
-
-        <form id="login">
-          <div class="form-field">
-            <label for="account">Account URL</label>
-            <input id="accountUrl" type="url" class="input-block" placeholder="Account URL" required data-persist>
-          </div>
-          <div class="form-field">
-            <button class="button-primary">Login</button>
-          </div>
-        </form>
-
-      </section>
-
-      <form id="step3">
-        <h3>Step3: Create Order</h3>
+      <form id="signup">
+        <h3>Crreate Account</h3>
         <div class="form-field">
-          <textarea name="domains" required placeholder="Enter your domain (e.g., example.com)" data-persist></textarea>
+          <label for="email">Contact:</label>
+          <input type="email" class="input-block" required placeholder="Email">
         </div>
         <div class="form-field">
-          <button type="submit" class="">Create Order</button>
+          <input type="checkbox" id="agree" name="terms" value="agree" required>
+          <label for="agree">Agree to the <a id="tos" href="#">Terms of Service</a></label>
+        </div>
+        <div class="form-field">
+          <button type="submit">Create Account</button>
+          <span> or <a href="#login">Login your existing account</a></span>
+        </div>
+      </form>
+
+      <form id="login">
+        <div class="form-field">
+          <label for="account">Account URL</label>
+          <input id="accountUrl" type="url" class="input-block" placeholder="Account URL" required data-persist>
+        </div>
+        <div class="form-field">
+          <button class="button-primary">Login</button>
+        </div>
+      </form>
+
+      <form class="form" id="step3">
+        <h3>Create Sign Request</h3>
+        <div class="form-field">
+          <label for="commonName">Common Name:</label>
+          <textarea id="domains" name="commonName" required data-persist
+            placeholder="Enter your domain (e.g., example.com)"></textarea>
+        </div>
+
+        <div class="form-field">
+          <label for="organization">Organization:</label>
+          <input type="text" class="input-block" name="organization" required value="Acme">
+        </div>
+
+        <div class="form-field">
+          <label for="organizationalUnit">Organizational Unit:</label>
+          <input type="text" class="input-block" name="organizationalUnit" value="IT">
+        </div>
+
+        <div class="form-field">
+          <label for="locality">Locality:</label>
+          <input type="text" class="input-block" name="locality" required value="San Francisco">
+        </div>
+
+        <div class="form-field">
+          <label for="state">State:</label>
+          <input type="text" class="input-block" name="state" required value="California">
+        </div>
+
+        <div class="form-field">
+          <label for="country">Country:</label>
+          <input type="text" class="input-block" name="country" required maxlength="2" value="US">
+        </div>
+
+        <div class="form-field">
+          <label for="email">Email:</label>
+          <input type="email" class="input-block" name="email" required data-persist>
+        </div>
+        <div class="form-field">
+          <button type="submit">Generate CSR</button>
+          <button id="createOrder" type="button" class="button-primary">Create Order</button>
         </div>
       </form>
 
       <div id="app"></div>
+
+      <form id="finalize">
+        <h3>Obtain certificate</h3>
+        <div class="form-field">
+          <label for="csr">CSR:</label>
+          <textarea id="csr" name="csr" required placeholder="Paste your CSR here"></textarea>
+        </div>
+        <div class="form-field">
+          <button type="submit">Finalize order</button>
+        </div>
+      </form>
+
+      <form>
+        <h3>Download certificate</h3>
+        <div class="form-field">
+          <button class="button-primary">Download</button>
+          <button class="button-danger">Revoke</button>
+        </div>
+      </form>
 
     </main>
   </div>
