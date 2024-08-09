@@ -47,7 +47,7 @@
         <h3>Crreate Account</h3>
         <div class="form-field">
           <label for="email">Contact:</label>
-          <input type="email" class="input-block" required placeholder="Email">
+          <input type="email" class="input-block" required placeholder="Email" data-persist>
         </div>
         <div class="form-field">
           <input type="checkbox" id="agree" name="terms" value="agree" required>
@@ -114,11 +114,22 @@
 
       <div id="app"></div>
 
+      <form >
+        <h3>Complete Challenge</h3>
+        <div class="form-field">
+          <label for="challengeUrl">Challenge Url</label>
+        </div>
+      </form>
+
       <form id="finalize">
         <h3>Obtain certificate</h3>
         <div class="form-field">
+          <label for="finalizeUrl">Finalize Url</label>
+          <input type="text" class="input-block" name="finalizeUrl" data-persist required placeholder="Finalize Url">
+        </div>
+        <div class="form-field">
           <label for="csr">CSR:</label>
-          <textarea id="csr" name="csr" required placeholder="Paste your CSR here"></textarea>
+          <textarea id="csr" name="csr" required placeholder="Paste your CSR here" data-persist></textarea>
         </div>
         <div class="form-field">
           <button type="submit">Finalize order</button>

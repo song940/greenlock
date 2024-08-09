@@ -1,11 +1,28 @@
 import { ready } from 'https://lsong.org/scripts/dom.js';
 import { sha256 } from 'https://lsong.org/scripts/crypto.js';
 import { generateCSRPem } from 'https://lsong.org/scripts/crypto/csr.js';
-import { base64UrlEncode } from 'https://lsong.org/scripts/crypto/base64.js';
+import { base64UrlEncode, encode, decode } from 'https://lsong.org/scripts/crypto/base64.js';
 import { initFormPersistence, saveElementValue, serialize } from 'https://lsong.org/scripts/form.js';
 import { h, render, useState, useLocalStorageState, useCallback, useEffect } from 'https://lsong.org/scripts/react/index.js';
 
 import { AcmeClient, generateRsaKeyPairAsPem } from './acme.js';
+
+export const toPem = (type, data) => {
+  return [
+    `-----BEGIN ${type}-----`,
+    encode(data).replace(/(.{64})/g, '$1\n'),
+    `-----END ${type}-----`,
+  ];
+};
+
+export const parsePem = pem => {
+  const lines = pem.split('\n');
+  const header = lines[0];
+  const type = header.match(/-----BEGIN (.*)-----/)[1];
+  const base64 = lines.slice(1, -1).join('');
+  const data = decode(base64);
+  return { type, data };
+};
 
 // Create an instance of AcmeClient
 const acme = new AcmeClient();
@@ -79,15 +96,16 @@ document.getElementById('createOrder').addEventListener('click', async (event) =
 document.getElementById('step3').addEventListener('submit', async (event) => {
   event.preventDefault();
   const inputs = serialize(event.target);
-  console.log(inputs);
   const csr = await generateCSRPem(acme.keyPair, inputs);
   document.getElementById('csr').value = csr;
 });
 
 document.getElementById('finalize').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const csr = event.target.querySelector('textarea').value;
-  console.log('finalize', csr);
+  const { finalizeUrl, csr } = serialize(event.target);
+  const data = parsePem(csr);
+  const res = await acme.finalizeOrder(finalizeUrl, base64UrlEncode(data.data));
+  console.log(res);
 });
 
 const hex = uint8array =>
@@ -97,7 +115,7 @@ const DNS01ChallengeInstructions = ({ authorization, challenge, thumbprint }) =>
   const [token, setToken] = useState('');
   const computeDnsTxtRecord = async (token, thumbprint) => {
     const hashBuffer = await sha256(`${token}.${thumbprint}`);
-    console.log('sha256', hex(hashBuffer), `${token}.${thumbprint}`);
+    // console.log('sha256', hex(hashBuffer), `${token}.${thumbprint}`);
     return base64UrlEncode(hashBuffer);
   };
   useEffect(() => {
