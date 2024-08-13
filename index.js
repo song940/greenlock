@@ -178,7 +178,6 @@ async function renderInstructions(challenge, auth) {
       <li>Ensure the TLS server is accessible
     `
   };
-
   return instructions[challenge.type] ? await instructions[challenge.type]() : 'Unsupported challenge type';
 }
 
